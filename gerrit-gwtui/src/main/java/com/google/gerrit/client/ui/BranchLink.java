@@ -15,6 +15,7 @@
 package com.google.gerrit.client.ui;
 
 import com.google.gerrit.client.Gerrit;
+import com.google.gerrit.client.changes.CommitSetScreen;
 import com.google.gerrit.client.changes.QueryScreen;
 import com.google.gerrit.common.PageLinks;
 import com.google.gerrit.reviewdb.Branch;
@@ -36,8 +37,13 @@ public class BranchLink extends InlineHyperlink {
   }
 
   private BranchLink(String text, String query) {
-    super(text, PageLinks.toChangeQuery(query));
+    super(text, buildPageLink(query));
     this.query = query;
+  }
+
+  private static String buildPageLink(String query) {
+    if (query.contains("topic")) return PageLinks.toChangeSet(query);
+    else return PageLinks.toChangeQuery(query);
   }
 
   @Override
@@ -46,7 +52,8 @@ public class BranchLink extends InlineHyperlink {
   }
 
   private Screen createScreen() {
-    return QueryScreen.forQuery(query);
+    if (query.contains("topic")) return CommitSetScreen.forQuery(query);
+    else return QueryScreen.forQuery(query);
   }
 
   private static String text(String branch, String topic) {

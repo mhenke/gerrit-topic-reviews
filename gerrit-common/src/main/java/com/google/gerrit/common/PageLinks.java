@@ -70,6 +70,12 @@ public class PageLinks {
     return "q," + KeyUtil.encode(query) + "," + TOP;
   }
 
+  // TODO
+  // We need to access not only refering to a query
+  public static String toChangeSet(final String query) {
+    return "changeset," + KeyUtil.encode(query) + "," + TOP;
+  }
+
   public static String projectQuery(Project.NameKey proj, Status status) {
     switch (status) {
       case ABANDONED:

@@ -53,8 +53,10 @@ import com.google.gerrit.client.auth.openid.OpenIdSignInDialog;
 import com.google.gerrit.client.auth.userpass.UserPassSignInDialog;
 import com.google.gerrit.client.changes.AccountDashboardScreen;
 import com.google.gerrit.client.changes.ChangeScreen;
+import com.google.gerrit.client.changes.CommitSetScreen;
 import com.google.gerrit.client.changes.PatchTable;
 import com.google.gerrit.client.changes.PublishCommentScreen;
+import com.google.gerrit.client.changes.PublishTopicCommentScreen;
 import com.google.gerrit.client.changes.QueryScreen;
 import com.google.gerrit.client.patches.PatchScreen;
 import com.google.gerrit.client.ui.Screen;
@@ -120,7 +122,7 @@ public class Dispatcher {
     if (token.startsWith("patch,")) {
       patch(token, null, 0, null, null);
 
-    } else if (token.startsWith("change,publish,")) {
+    } else if (token.contains(",publish,")) {
       publish(token);
 
     } else if (MINE.equals(token) || token.startsWith("mine,")) {
@@ -257,6 +259,13 @@ public class Dispatcher {
       return new QueryScreen(s.substring(0, c), s.substring(c + 1));
     }
 
+    p = "changeset,";
+    if (token.startsWith(p)) {
+      final String s = skip(p, token);
+      final int c = s.indexOf(',');
+      return new CommitSetScreen(s.substring(0, c), s.substring(c + 1));
+    }
+
     return new NotFoundScreen();
   }
 
@@ -267,9 +276,16 @@ public class Dispatcher {
       }
 
       private Screen select() {
-        String p = "change,publish,";
+        String p;
+
+        p = "change,publish,";
         if (token.startsWith(p))
           return new PublishCommentScreen(PatchSet.Id.parse(skip(p, token)));
+
+        p = "changeset,publish,";
+        if (token.startsWith(p))
+          return new PublishTopicCommentScreen(PatchSet.Id.parse(skip(p, token)));
+
         return new NotFoundScreen();
       }
     }.onSuccess();

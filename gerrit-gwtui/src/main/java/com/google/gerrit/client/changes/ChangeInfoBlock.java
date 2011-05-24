@@ -69,7 +69,7 @@ public class ChangeInfoBlock extends Composite {
     initWidget(table);
   }
 
-  private void initRow(final int row, final String name) {
+  protected void initRow(final int row, final String name) {
     table.setText(row, 0, name);
     table.getCellFormatter().addStyleName(row, 0, Gerrit.RESOURCES.css().header());
   }

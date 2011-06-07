@@ -21,6 +21,7 @@ import com.google.gerrit.client.ui.AccountDashboardLink;
 import com.google.gerrit.client.ui.BranchLink;
 import com.google.gerrit.client.ui.ChangeLink;
 import com.google.gerrit.client.ui.ProjectLink;
+import com.google.gerrit.client.ui.TopicLink;
 import com.google.gerrit.common.data.AccountInfoCache;
 import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
@@ -69,7 +70,7 @@ public class ChangeInfoBlock extends Composite {
     initWidget(table);
   }
 
-  protected void initRow(final int row, final String name) {
+  private void initRow(final int row, final String name) {
     table.setText(row, 0, name);
     table.getCellFormatter().addStyleName(row, 0, Gerrit.RESOURCES.css().header());
   }
@@ -86,8 +87,7 @@ public class ChangeInfoBlock extends Composite {
     table.setWidget(R_PROJECT, 1, new ProjectLink(chg.getProject(), chg.getStatus()));
     table.setWidget(R_BRANCH, 1, new BranchLink(dst.getShortName(), chg
         .getProject(), chg.getStatus(), dst.get(), null));
-    table.setWidget(R_TOPIC, 1, new BranchLink(chg.getTopic(),
-        chg.getProject(), chg.getStatus(), dst.get(), chg.getTopic()));
+    table.setWidget(R_TOPIC, 1, new TopicLink(chg.getTopic(), chg.getTopicId()));
     table.setText(R_UPLOADED, 1, mediumFormat(chg.getCreatedOn()));
     table.setText(R_UPDATED, 1, mediumFormat(chg.getLastUpdatedOn()));
     table.setText(R_STATUS, 1, Util.toLongString(chg.getStatus()));

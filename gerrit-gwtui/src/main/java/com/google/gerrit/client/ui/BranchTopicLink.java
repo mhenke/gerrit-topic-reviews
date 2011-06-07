@@ -37,7 +37,14 @@ public class BranchTopicLink extends Composite {
 
     bl = new BranchLink(text, project, status, branch, topic);
     if (topicId != null) tl = new TopicLink(" (" + topic + ")", topicId);
-    else tl = null;
+    else {
+      // TODO Remove this when the server side is ready and simply do not add tl to the HorizontalPanel
+      String topicString;
+      if (topic == null) topicString = "";
+      else topicString = " (" + topic + ")";
+
+      tl = new TopicLink(topicString, new Change.Id(1));
+    }
 
     hp.add(bl);
     hp.add(tl);

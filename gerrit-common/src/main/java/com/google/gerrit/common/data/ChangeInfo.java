@@ -16,6 +16,7 @@ package com.google.gerrit.common.data;
 
 import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.Change.Id;
 
 import java.sql.Timestamp;
 
@@ -28,6 +29,7 @@ public class ChangeInfo {
   protected ProjectInfo project;
   protected String branch;
   protected String topic;
+  protected Id topicId;
   protected boolean starred;
   protected Timestamp lastUpdatedOn;
   protected String sortKey;
@@ -44,6 +46,7 @@ public class ChangeInfo {
     project = new ProjectInfo(c.getProject());
     branch = c.getDest().getShortName();
     topic = c.getTopic();
+    topicId = c.getTopicId();
     lastUpdatedOn = c.getLastUpdatedOn();
     sortKey = c.getSortKey();
   }
@@ -78,6 +81,10 @@ public class ChangeInfo {
 
   public String getTopic() {
     return topic;
+  }
+
+  public Id getTopicId() {
+    return topicId;
   }
 
   public boolean isStarred() {

@@ -30,7 +30,9 @@ import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.ApprovalCategoryValue;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.Change.Id;
 import com.google.gerrit.reviewdb.PatchSetApproval;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.DOM;
@@ -58,6 +60,7 @@ public class ApprovalTable extends Composite {
   private final Panel addReviewer;
   private final AddMemberBox addMemberBox;
   private Change.Id changeId;
+  private Id topicId;
   private AccountInfoCache accountCache = AccountInfoCache.empty();
 
   public ApprovalTable() {
@@ -128,16 +131,29 @@ public class ApprovalTable extends Composite {
     return AccountDashboardLink.link(accountCache, id);
   }
 
+  public void display(final Topic topic, final Set<ApprovalCategory.Id> need,
+      final List<ApprovalDetail> rows) {
+    topicId = topic.getId();
+    // TODO need to add a propper support for topics, or create a new approval table
+    changeId = new Change.Id(3);
+    display(need, rows, topic.getStatus().isOpen());
+  }
+
   public void display(final Change change, final Set<ApprovalCategory.Id> need,
       final List<ApprovalDetail> rows) {
     changeId = change.getId();
+    display(need, rows, change.getStatus().isOpen());
+  }
+
+  private void display(final Set<ApprovalCategory.Id> need,
+      final List<ApprovalDetail> rows, final boolean status) {
 
     if (rows.isEmpty()) {
       table.setVisible(false);
     } else {
       table.resizeRows(1 + rows.size());
       for (int i = 0; i < rows.size(); i++) {
-        displayRow(i + 1, rows.get(i), change);
+        displayRow(i + 1, rows.get(i));
       }
       table.setVisible(true);
     }
@@ -161,7 +177,7 @@ public class ApprovalTable extends Composite {
       }
     }
 
-    addReviewer.setVisible(Gerrit.isSignedIn() && change.getStatus().isOpen());
+    addReviewer.setVisible(Gerrit.isSignedIn() && status);
   }
 
   private void doAddReviewer() {
@@ -222,8 +238,7 @@ public class ApprovalTable extends Composite {
         });
   }
 
-  private void displayRow(final int row, final ApprovalDetail ad,
-      final Change change) {
+  private void displayRow(final int row, final ApprovalDetail ad) {
     final CellFormatter fmt = table.getCellFormatter();
     final Map<ApprovalCategory.Id, PatchSetApproval> am = ad.getApprovalMap();
     final StringBuilder hint = new StringBuilder();

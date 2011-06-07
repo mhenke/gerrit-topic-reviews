@@ -27,7 +27,9 @@ import com.google.gerrit.reviewdb.AccountGroupAgreement;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.Change.Id;
 import com.google.gerrit.reviewdb.ChangeMessage;
+import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.ContributorAgreement;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.PatchSetAncestor;
@@ -36,6 +38,7 @@ import com.google.gerrit.reviewdb.PatchSetInfo;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.RevId;
 import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.GerritPersonIdent;
 import com.google.gerrit.server.IdentifiedUser;
@@ -105,6 +108,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   private static final Logger log =
       LoggerFactory.getLogger(ReceiveCommits.class);
 
+  // TODO
+  // New one for topics?
   public static final String NEW_CHANGE = "refs/for/";
   private static final Pattern NEW_PATCHSET =
       Pattern.compile("^refs/changes/(?:[0-9][0-9]/)?([1-9][0-9]*)(?:/new)?$");
@@ -140,9 +145,14 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   private final AccountResolver accountResolver;
   private final CreateChangeSender.Factory createChangeSenderFactory;
   private final MergedSender.Factory mergedSenderFactory;
+  // TODO ?
   private final ReplacePatchSetSender.Factory replacePatchSetFactory;
   private final ReplicationQueue replication;
+  // TODO
+  // ChangeSetInfoFactory ?
   private final PatchSetInfoFactory patchSetInfoFactory;
+  // TODO
+  // New TopicHookRunner, or modify that one?
   private final ChangeHookRunner hooks;
   private final GitRepositoryManager repoManager;
   private final ProjectCache projectCache;
@@ -161,6 +171,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   private Branch.NameKey destBranch;
   private RefControl destBranchCtl;
 
+  // TODO
+  // The same in its Topic equivalent
   private final List<Change.Id> allNewChanges = new ArrayList<Change.Id>();
   private final Map<Change.Id, ReplaceRequest> replaceByChange =
       new HashMap<Change.Id, ReplaceRequest>();
@@ -964,6 +976,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           return;
         }
 
+        // TODO
+        // Understand what is going on here
         final List<String> idList = c.getFooterLines(CHANGE_ID);
         if (!idList.isEmpty()) {
           final String idStr = idList.get(idList.size() - 1).trim();
@@ -1033,9 +1047,33 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       return;
     }
 
+    // TODO
+    // If the settings allows us to create topics as commit sets &&
+    // If we have specified a destination topic &&
+    // If there is more than one change &&
+    // Then, create a new topic
+
+    // IMPORTANT
+    // In this first implementation, all the topics pushed are considered as new!
+    // This needs to change
+
+    Id topicId = null;
+    if ((destTopicName != null) && (toCreate.size() > 1)) {
+      try {
+        topicId = createTopic();
+        // TODO
+        // EraseMe when done!
+        log.info("DIEGO: created topic with id " + topicId);
+      } catch (OrmException e) {
+        log.error("Error creating Topic " + destTopicName + " for commit set.", e);
+        reject(newChange, "database error");
+        return;
+      }
+    }
+
     for (final RevCommit c : toCreate) {
       try {
-        createChange(walk, c);
+        createChange(walk, c, topicId);
       } catch (IOException e) {
         log.error("Error computing patch of commit " + c.name(), e);
         reject(newChange, "diff error");
@@ -1049,11 +1087,36 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     newChange.setResult(ReceiveCommand.Result.OK);
   }
 
+  // TODO
+  // Complete this function
+  private Id createTopic() throws OrmException {
+    final Account.Id me = currentUser.getAccountId();
+    final Id topicId = new Id(db.nextChangeId());
+    final Topic.Key topicKey = new Topic.Key("T" + topicId.toString() + destTopicName);
+    Topic parentTopic = new Topic(topicKey, topicId, me, destBranch);
+
+    // TODO
+    // Now we need to create the changeSet
+    // and associate it to the Topic
+    final ChangeSet cs = new ChangeSet(parentTopic.currChangeSetId());
+    cs.setCreatedOn(parentTopic.getCreatedOn());
+    cs.setUploader(me);
+    //ps.setRevision(toRevId(c));
+    // TODO
+    // Insert Ancestors of the changeSet
+    //insertAncestors(ps.getId(), c);
+    db.changeSets().insert(Collections.singleton(cs));
+
+
+    db.topics().insert(Collections.singleton(parentTopic));
+    return parentTopic.getId();
+  }
+
   private static boolean isValidChangeId(String idStr) {
     return idStr.matches("^I[0-9a-fA-F]{40}$") && !idStr.matches("^I00*$");
   }
 
-  private void createChange(final RevWalk walk, final RevCommit c)
+  private void createChange(final RevWalk walk, final RevCommit c, final Id topicId)
       throws OrmException, IOException {
     walk.parseBody(c);
     warnMalformedMessage(c);
@@ -1085,6 +1148,15 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
 
     final Change change =
         new Change(changeKey, new Change.Id(db.nextChangeId()), me, destBranch);
+    // TODO
+    // Check the settings before assigning it
+    // Maybe the administrator is not interested in enabling this functionality
+    // Also, we need to check if it was specified by the command line
+
+    // TODO
+    // Also we need to add the change to the current changeSet
+    // Maybe is better to put this instruction in other part of the code.
+    if (topicId != null) change.setTopicId(topicId);
     change.setTopic(destTopicName);
     change.nextPatchSetId();
 

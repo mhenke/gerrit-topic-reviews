@@ -1,4 +1,4 @@
-// Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2011 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,29 @@
 
 package com.google.gerrit.reviewdb;
 
+import com.google.gerrit.reviewdb.Change.Id;
+import com.google.gerrit.reviewdb.Change.Status;
 import com.google.gwtorm.client.Column;
-import com.google.gwtorm.client.IntKey;
 import com.google.gwtorm.client.RowVersion;
 import com.google.gwtorm.client.StringKey;
 
 import java.sql.Timestamp;
 
 /**
- * A change proposed to be merged into a {@link Branch}.
+ * A group of changes proposed to be merged into a {@link Branch}.
  * <p>
- * The data graph rooted below a Change can be quite complex:
+ * The data graph rooted below a Topic can be quite complex:
  *
  * <pre>
- *   {@link Change}
+ *   {@link Topic}
  *     |
+ *     +- {@link TopicMessage}: &quot;cover letter&quot; or general comment.
+ *     |
+ *     +- {@link ChangeSet}: a variant of this topic ( group of changes ).
+ *
+ *     //TODO
+ *
+ *
  *     +- {@link ChangeMessage}: &quot;cover letter&quot; or general comment.
  *     |
  *     +- {@link PatchSet}: a single variant of this change.
@@ -38,6 +46,12 @@ import java.sql.Timestamp;
  *          +- {@link PatchSetAncestor}: parents of this change's commit.
  *          |
  *          +- {@link PatchLineComment}: comment about a specific line
+ *
+ * </pre>
+ * <p>
+ * <h5>ChangeSets</h5>
+ * <p>
+ *
  * </pre>
  * <p>
  * <h5>PatchSets</h5>
@@ -97,43 +111,14 @@ import java.sql.Timestamp;
  * individuals are highlighted when notice of a replacement patch set is sent,
  * or when notice of the change submission occurs.
  */
-public final class Change {
-  public static class Id extends IntKey<com.google.gwtorm.client.Key<?>> {
-    private static final long serialVersionUID = 1L;
+public final class Topic {
+  // TODO
+//  public static class Id extends IntKey<com.google.gwtorm.client.Key<?>> {
+// Now is imported from Change
 
-    @Column(id = 1)
-    protected int id;
-
-    protected Id() {
-    }
-
-    public Id(final int id) {
-      this.id = id;
-    }
-
-    @Override
-    public int get() {
-      return id;
-    }
-
-    @Override
-    protected void set(int newValue) {
-      id = newValue;
-    }
-
-    /** Parse a Change.Id out of a string representation. */
-    public static Id parse(final String str) {
-      final Id r = new Id();
-      r.fromString(str);
-      return r;
-    }
-
-    public static Id fromRef(final String ref) {
-      return PatchSet.Id.fromRef(ref).getParentKey();
-    }
-  }
-
-  /** Globally unique identification of this change. */
+  // TODO
+  // FORMAT "T" + topicId + topic
+  /** Globally unique identification of this topic. */
   public static class Key extends StringKey<com.google.gwtorm.client.Key<?>> {
     private static final long serialVersionUID = 1L;
 
@@ -157,6 +142,8 @@ public final class Change {
       id = newValue;
     }
 
+    // TODO
+    // Probably we can ger rid of this
     /** Construct a key that is after all keys prefixed by this key. */
     public Key max() {
       final StringBuilder revEnd = new StringBuilder(get().length() + 1);
@@ -171,7 +158,7 @@ public final class Change {
       return s.substring(0, Math.min(s.length(), 9));
     }
 
-    /** Parse a Change.Key out of a string representation. */
+    /** Parse a Topic.Key out of a string representation. */
     public static Key parse(final String str) {
       final Key r = new Key();
       r.fromString(str);
@@ -192,7 +179,8 @@ public final class Change {
   protected static final char STATUS_MERGED = 'M';
 
   /**
-   * Current state within the basic workflow of the change.
+   * Current state within the basic workflow of the topic is analogous to the one
+   * for a change.
    *
    * <p>
    * Within the database, lower case codes ('a'..'z') indicate a change that is
@@ -200,115 +188,26 @@ public final class Change {
    * codes ('A'..'Z') indicate a change that is closed and cannot be further
    * modified.
    * */
-  public static enum Status {
-    /**
-     * Change is open and pending review, or review is in progress.
-     *
-     * <p>
-     * This is the default state assigned to a change when it is first created
-     * in the database. A change stays in the NEW state throughout its review
-     * cycle, until the change is submitted or abandoned.
-     *
-     * <p>
-     * Changes in the NEW state can be moved to:
-     * <ul>
-     * <li>{@link #SUBMITTED} - when the Submit Patch Set action is used;
-     * <li>{@link #ABANDONED} - when the Abandon action is used.
-     * </ul>
-     */
-    NEW(STATUS_NEW),
 
-    /**
-     * Change is open, but has been submitted to the merge queue.
-     *
-     * <p>
-     * A change enters the SUBMITTED state when an authorized user presses the
-     * "submit" action through the web UI, requesting that Gerrit merge the
-     * change's current patch set into the destination branch.
-     *
-     * <p>
-     * Typically a change resides in the SUBMITTED for only a brief sub-second
-     * period while the merge queue fires and the destination branch is updated.
-     * However, if a dependency commit (a {@link PatchSetAncestor}, directly or
-     * transitively) is not yet merged into the branch, the change will hang in
-     * the SUBMITTED state indefinately.
-     *
-     * <p>
-     * Changes in the SUBMITTED state can be moved to:
-     * <ul>
-     * <li>{@link #NEW} - when a replacement patch set is supplied, OR when a
-     * merge conflict is detected;
-     * <li>{@link #MERGED} - when the change has been successfully merged into
-     * the destination branch;
-     * <li>{@link #ABANDONED} - when the Abandon action is used.
-     * </ul>
-     */
-    SUBMITTED(STATUS_SUBMITTED),
+  // TODO
+//  public static Change.Status Status;
+//  public static enum Status {
+// Now is imported from chage
 
-    /**
-     * Change is closed, and submitted to its destination branch.
-     *
-     * <p>
-     * Once a change has been merged, it cannot be further modified by adding a
-     * replacement patch set. Draft comments however may be published,
-     * supporting a post-submit review.
-     */
-    MERGED(STATUS_MERGED),
-
-    /**
-     * Change is closed, but was not submitted to its destination branch.
-     *
-     * <p>
-     * Once a change has been abandoned, it cannot be further modified by adding
-     * a replacement patch set, and it cannot be merged. Draft comments however
-     * may be published, permitting reviewers to send constructive feedback.
-     */
-    ABANDONED('A');
-
-    private final char code;
-    private final boolean closed;
-
-    private Status(final char c) {
-      code = c;
-      closed = !(MIN_OPEN <= c && c <= MAX_OPEN);
-    }
-
-    public char getCode() {
-      return code;
-    }
-
-    public boolean isOpen() {
-      return !closed;
-    }
-
-    public boolean isClosed() {
-      return closed;
-    }
-
-    public static Status forCode(final char c) {
-      for (final Status s : Status.values()) {
-        if (s.code == c) {
-          return s;
-        }
-      }
-      return null;
-    }
-  }
-
-  /** Locally assigned unique identifier of the change */
+  /** Locally assigned unique identifier of the topic */
   @Column(id = 1)
-  protected Id changeId;
+  protected Id topicId;
 
-  /** Globally assigned unique identifier of the change */
+  /** Globally assigned unique identifier of the topic */
   @Column(id = 2)
-  protected Key changeKey;
+  protected Key topicKey;
 
   /** optimistic locking */
   @Column(id = 3)
   @RowVersion
   protected int rowVersion;
 
-  /** When this change was first introduced into the database. */
+  /** When this topic was first introduced into the database. */
   @Column(id = 4)
   protected Timestamp createdOn;
 
@@ -327,7 +226,7 @@ public final class Change {
   @Column(id = 7, name = "owner_account_id")
   protected Account.Id owner;
 
-  /** The branch (and project) this change merges into. */
+  /** The branch (and project) this topic merges into. */
   @Column(id = 8)
   protected Branch.NameKey dest;
 
@@ -339,33 +238,33 @@ public final class Change {
   @Column(id = 10)
   protected char status;
 
-  /** The total number of {@link PatchSet} children in this Change. */
+  /** The total number of {@link ChangeSet} children in this Topic. */
   @Column(id = 11)
-  protected int nbrPatchSets;
+  protected int nbrChangeSets;
 
-  /** The current patch set. */
+  /** The current change set. */
   @Column(id = 12)
-  protected int currentPatchSetId;
+  protected int currentChangeSetId;
 
-  /** Subject from the current patch set. */
+  // TODO
+  // do we need this?
+  /** Subject from the current change set. */
   @Column(id = 13)
   protected String subject;
 
+  // TODO
+  // must not be nul
   /** Topic name assigned by the user, if any. */
   @Column(id = 14, notNull = false)
-  protected String topic;
+  protected String topicName;
 
-  /** Topic Id which this change belongs to, if any. */
-  @Column(id = 15, notNull = false)
-  protected Id topicId;
-
-  protected Change() {
+  protected Topic() {
   }
 
-  public Change(final Change.Key newKey, final Change.Id newId,
+  public Topic(final Topic.Key newKey, final Id newId,
       final Account.Id ownedBy, final Branch.NameKey forBranch) {
-    changeKey = newKey;
-    changeId = newId;
+    topicKey = newKey;
+    topicId = newId;
     createdOn = new Timestamp(System.currentTimeMillis());
     lastUpdatedOn = createdOn;
     owner = ownedBy;
@@ -374,22 +273,22 @@ public final class Change {
   }
 
   /** Legacy 32 bit integer identity for a change. */
-  public Change.Id getId() {
-    return changeId;
+  public Id getId() {
+    return topicId;
   }
 
   /** Legacy 32 bit integer identity for a change. */
-  public int getChangeId() {
-    return changeId.get();
+  public int getTopicId() {
+    return topicId.get();
   }
 
   /** The Change-Id tag out of the initial commit, or a natural key. */
-  public Change.Key getKey() {
-    return changeKey;
+  public Topic.Key getKey() {
+    return topicKey;
   }
 
-  public void setKey(final Change.Key k) {
-    changeKey = k;
+  public void setKey(final Topic.Key k) {
+    topicKey = k;
   }
 
   public Timestamp getCreatedOn() {
@@ -428,30 +327,30 @@ public final class Change {
     return subject;
   }
 
-  /** Get the id of the most current {@link PatchSet} in this change. */
-  public PatchSet.Id currentPatchSetId() {
-    if (currentPatchSetId > 0) {
-      return new PatchSet.Id(changeId, currentPatchSetId);
+  /** Get the id of the most current {@link ChangeSet} in this topic. */
+  public ChangeSet.Id currentChangeSetId() {
+    if (currentChangeSetId > 0) {
+      return new ChangeSet.Id(topicId, currentChangeSetId);
     }
     return null;
   }
 
-  public void setCurrentPatchSet(final PatchSetInfo ps) {
-    currentPatchSetId = ps.getKey().get();
-    subject = ps.getSubject();
+  public void setCurrentChangeSet(final ChangeSetInfo cs) {
+    currentChangeSetId = cs.getKey().get();
+    subject = cs.getSubject();
   }
 
   /**
-   * Allocate a new PatchSet id within this change.
+   * Allocate a new ChangeSet id within this topic.
    * <p>
    * <b>Note: This makes the change dirty. Call update() after.</b>
    */
-  public void nextPatchSetId() {
-    ++nbrPatchSets;
+  public void nextChangeSetId() {
+    ++nbrChangeSets;
   }
 
-  public PatchSet.Id currPatchSetId() {
-    return new PatchSet.Id(changeId, nbrPatchSets);
+  public ChangeSet.Id currChangeSetId() {
+    return new ChangeSet.Id(topicId, nbrChangeSets);
   }
 
   public Status getStatus() {
@@ -464,18 +363,10 @@ public final class Change {
   }
 
   public String getTopic() {
-    return topic;
+    return topicName;
   }
 
   public void setTopic(String topic) {
-    this.topic = topic;
-  }
-
-  public Id getTopicId() {
-    return topicId;
-  }
-
-  public void setTopicId(Id tId) {
-    this.topicId = tId;
+    this.topicName = topic;
   }
 }

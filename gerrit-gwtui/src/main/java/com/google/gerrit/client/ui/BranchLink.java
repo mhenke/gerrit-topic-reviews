@@ -15,7 +15,6 @@
 package com.google.gerrit.client.ui;
 
 import com.google.gerrit.client.Gerrit;
-import com.google.gerrit.client.changes.CommitSetScreen;
 import com.google.gerrit.client.changes.QueryScreen;
 import com.google.gerrit.common.PageLinks;
 import com.google.gerrit.reviewdb.Branch;
@@ -28,7 +27,7 @@ public class BranchLink extends InlineHyperlink {
 
   public BranchLink(Project.NameKey project, Change.Status status,
       String branch, String topic) {
-    this(text(branch, topic), query(project, status, branch, topic));
+    this(branch + " ", query(project, status, branch, topic));
   }
 
   public BranchLink(String text, Project.NameKey project, Change.Status status,
@@ -37,13 +36,8 @@ public class BranchLink extends InlineHyperlink {
   }
 
   private BranchLink(String text, String query) {
-    super(text, buildPageLink(query));
+    super(text, PageLinks.toChangeQuery(query));
     this.query = query;
-  }
-
-  private static String buildPageLink(String query) {
-    if (query.contains("topic")) return PageLinks.toChangeSet(query);
-    else return PageLinks.toChangeQuery(query);
   }
 
   @Override
@@ -52,16 +46,7 @@ public class BranchLink extends InlineHyperlink {
   }
 
   private Screen createScreen() {
-    if (query.contains("topic")) return CommitSetScreen.forQuery(query);
-    else return QueryScreen.forQuery(query);
-  }
-
-  private static String text(String branch, String topic) {
-    if (topic != null && !topic.isEmpty()) {
-      return branch + " (" + topic + ")";
-    } else {
-      return branch;
-    }
+    return QueryScreen.forQuery(query);
   }
 
   private static String query(Project.NameKey project, Change.Status status,

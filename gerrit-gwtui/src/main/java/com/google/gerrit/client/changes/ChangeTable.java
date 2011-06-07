@@ -21,8 +21,8 @@ import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.patches.PatchUtil;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.ui.AccountDashboardLink;
-import com.google.gerrit.client.ui.BranchLink;
 import com.google.gerrit.client.ui.ChangeLink;
+import com.google.gerrit.client.ui.BranchTopicLink;
 import com.google.gerrit.client.ui.NavigationTable;
 import com.google.gerrit.client.ui.NeedsSignInKeyCommand;
 import com.google.gerrit.client.ui.ProjectLink;
@@ -227,11 +227,12 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
       s += " (" + c.getStatus().name() + ")";
     }
     table.setWidget(row, C_SUBJECT, new TableChangeLink(s, c));
-    table.setWidget(row, C_OWNER, link(c.getOwner()));
+    // TODO commented because of the use of the dummy data. Remove comment when the server side is implemented
+    //table.setWidget(row, C_OWNER, link(c.getOwner()));
     table.setWidget(row, C_PROJECT, new ProjectLink(c.getProject().getKey(), c
         .getStatus()));
-    table.setWidget(row, C_BRANCH, new BranchLink(c.getProject().getKey(), c
-        .getStatus(), c.getBranch(), c.getTopic()));
+    table.setWidget(row, C_BRANCH, new BranchTopicLink(c.getProject().getKey(), c
+        .getStatus(), c.getBranch(), c.getTopic(), c.getTopicId()));
     table.setText(row, C_LAST_UPDATE, shortFormat(c.getLastUpdatedOn()));
     setRowItem(row, c);
   }

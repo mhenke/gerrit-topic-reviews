@@ -20,6 +20,7 @@ import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.Project;
+import com.google.gerrit.reviewdb.Change.Id;
 import com.google.gerrit.reviewdb.Change.Status;
 import com.google.gwtorm.client.KeyUtil;
 
@@ -54,6 +55,10 @@ public class PageLinks {
     return "change," + ps.getParentKey().toString() + ",patchset=" + ps.get();
   }
 
+  public static String toTopic(final Id topicId) {
+    return "topic," + topicId.toString();
+  }
+
   public static String toProjectAcceess(final Project.NameKey p) {
     return "admin,project," + p.get() + ",access";
   }
@@ -68,12 +73,6 @@ public class PageLinks {
 
   public static String toChangeQuery(final String query) {
     return "q," + KeyUtil.encode(query) + "," + TOP;
-  }
-
-  // TODO
-  // We need to access not only refering to a query
-  public static String toChangeSet(final String query) {
-    return "changeset," + KeyUtil.encode(query) + "," + TOP;
   }
 
   public static String projectQuery(Project.NameKey proj, Status status) {

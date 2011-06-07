@@ -1,4 +1,4 @@
-// Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2011 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,19 +24,28 @@ import com.google.gerrit.client.ui.AccountScreen;
 import com.google.gerrit.client.ui.PatchLink;
 import com.google.gerrit.client.ui.SmallHeading;
 import com.google.gerrit.common.PageLinks;
+import com.google.gerrit.common.data.AccountInfo;
+import com.google.gerrit.common.data.AccountInfoCache;
 import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.ChangeDetail;
+import com.google.gerrit.common.data.ChangeSetDetail;
+import com.google.gerrit.common.data.ChangeSetPublishDetail;
 import com.google.gerrit.common.data.PatchSetPublishDetail;
 import com.google.gerrit.common.data.Permission;
 import com.google.gerrit.common.data.PermissionRange;
+import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.ApprovalCategoryValue;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.ChangeSet;
+import com.google.gerrit.reviewdb.ChangeSetInfo;
 import com.google.gerrit.reviewdb.Patch;
 import com.google.gerrit.reviewdb.PatchLineComment;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.PatchSetApproval;
+import com.google.gerrit.reviewdb.Topic;
+import com.google.gerrit.reviewdb.UserIdentity;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
@@ -63,10 +72,9 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     ClickHandler, CommentEditorContainer {
   private static SavedState lastState;
 
-  private final PatchSet.Id patchSetId;
+  private final ChangeSet.Id changeSetId;
   private Collection<ValueRadioButton> approvalButtons;
-  private TopicInfoBlock descBlock;
-  private CommitMessageBlock messageBlock;
+  private TopicDescriptionBlock descBlock;
   private Panel approvalPanel;
   private NpTextArea message;
   private FlowPanel draftsPanel;
@@ -76,8 +84,8 @@ public class PublishTopicCommentScreen extends AccountScreen implements
   private boolean saveStateOnUnload = true;
   private List<CommentEditorPanel> commentEditors;
 
-  public PublishTopicCommentScreen(final PatchSet.Id psi) {
-    patchSetId = psi;
+  public PublishTopicCommentScreen(final ChangeSet.Id csi) {
+    changeSetId = csi;
   }
 
   @Override
@@ -87,13 +95,8 @@ public class PublishTopicCommentScreen extends AccountScreen implements
 
     approvalButtons = new ArrayList<ValueRadioButton>();
 
-    final HorizontalPanel hp = new HorizontalPanel();
-    descBlock = new TopicInfoBlock();
-    hp.add(descBlock);
-
-    messageBlock = new CommitMessageBlock();
-    hp.add(messageBlock);
-    add(hp);
+    descBlock = new TopicDescriptionBlock();
+    add(descBlock);
 
     final FormPanel form = new FormPanel();
     final FlowPanel body = new FlowPanel();
@@ -146,19 +149,77 @@ public class PublishTopicCommentScreen extends AccountScreen implements
   @Override
   protected void onLoad() {
     super.onLoad();
-    Util.DETAIL_SVC.patchSetPublishDetail(patchSetId,
-        new ScreenLoadCallback<PatchSetPublishDetail>(this) {
-          @Override
-          protected void preDisplay(final PatchSetPublishDetail result) {
-            send.setEnabled(true);
-            display(result);
-          }
+    // TODO
+//    Util.DETAIL_SVC.patchSetPublishDetail(patchSetId,
+//        new ScreenLoadCallback<PatchSetPublishDetail>(this) {
+//          @Override
+//          protected void preDisplay(final PatchSetPublishDetail result) {
+//            send.setEnabled(true);
+//            display(result);
+//          }
+//
+//          @Override
+//          protected void postDisplay() {
+//            message.setFocus(true);
+//          }
+//        });
 
-          @Override
-          protected void postDisplay() {
-            message.setFocus(true);
-          }
-        });
+    // TODO delete the following lines, as it is a replacement for the server side
+    // BEGIN
+    send.setEnabled(true);
+    ChangeSetPublishDetail r = new ChangeSetPublishDetail();
+
+    Account me = Gerrit.getUserAccount();
+    Account.Id aId = me.getId();
+    AccountInfo ai = new AccountInfo(aId);
+    ai.setPreferredEmail("my@email.com");
+    List<AccountInfo> aiList = new ArrayList<AccountInfo>();
+    aiList.add(ai);
+    AccountInfoCache aic = new AccountInfoCache(aiList);
+
+    List<ChangeSet> lcs = new ArrayList<ChangeSet>();
+    ChangeSetDetail csDetail = new ChangeSetDetail();
+    ChangeSet.Id csId = null;
+    lcs.clear();
+    UserIdentity uid = new UserIdentity();
+    uid.setAccount(aId);
+    uid.setEmail("my@email.com");
+    uid.setName("FakeName");
+    uid.setTimeZone(0);
+    Change.Id currentTopicId = new Change.Id(1100011);
+    ChangeSetInfo csi = null;
+    csId = new ChangeSet.Id(currentTopicId, 1);
+    ChangeSet cs = new ChangeSet(csId);
+    cs.setTopicId(currentTopicId);
+    csDetail.setChangeSet(cs);
+    csId = new ChangeSet.Id(currentTopicId, 1);
+    csi = new ChangeSetInfo(csId);
+    csi.setSubject("This is the subject from the last change set - Problem - which one of the commits we should take??");
+    csi.setAuthor(uid);
+    csi.setMessage("ChangeSetInfo message");
+    csDetail.setInfo(csi);
+    lcs.add(cs);
+
+    Topic.Key tKey = new Topic.Key("1100010101101 harcoded");
+    Topic topic = new Topic(tKey, currentTopicId, aId, null);
+    topic.setCurrentChangeSet(csi);
+    topic.setStatus(Change.Status.NEW);
+    topic.setTopic("This is the topic string");
+
+    List<PermissionRange> labels = new ArrayList<PermissionRange>();
+    PermissionRange pr = new PermissionRange("Permission", -2, 2);
+    labels.add(pr);
+
+    r.setAccounts(aic);
+    r.setCanSubmit(true);
+    r.setChangeSetInfo(csi);
+    r.setTopic(topic);
+    r.setLabels(labels);
+
+    display(r);
+    this.display();
+    message.setFocus(true);
+    // END
   }
 
   @Override
@@ -227,7 +288,7 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     mwrap.add(message);
   }
 
-  private void initApprovals(final PatchSetPublishDetail r, final Panel body) {
+  private void initApprovals(final ChangeSetPublishDetail r, final Panel body) {
     ApprovalTypes types = Gerrit.getConfig().getApprovalTypes();
 
     for (ApprovalType type : types.getApprovalTypes()) {
@@ -239,13 +300,14 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     }
 
     for (PermissionRange range : r.getLabels()) {
-      if (!range.isEmpty() && types.byLabel(range.getLabel()) == null) {
-        // TODO: this is a non-standard label. Offer it without the type.
-      }
+      // TODO
+//      if (!range.isEmpty() && types.byLabel(range.getLabel()) == null) {
+//        // TODO: this is a non-standard label. Offer it without the type.
+//      }
     }
   }
 
-  private void initApprovalType(final PatchSetPublishDetail r,
+  private void initApprovalType(final ChangeSetPublishDetail r,
       final Panel body, final ApprovalType ct, final PermissionRange range) {
     body.add(new SmallHeading(ct.getCategory().getName() + ":"));
 
@@ -266,7 +328,7 @@ public class PublishTopicCommentScreen extends AccountScreen implements
           new ValueRadioButton(buttonValue, ct.getCategory().getName());
       b.setText(buttonValue.format());
 
-      if (lastState != null && patchSetId.equals(lastState.patchSetId)
+      if (lastState != null && changeSetId.equals(lastState.changeSetId)
           && lastState.approvals.containsKey(buttonValue.getCategoryId())) {
         b.setValue(lastState.approvals.get(buttonValue.getCategoryId()).equals(
             buttonValue));
@@ -281,48 +343,49 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     body.add(vp);
   }
 
-  private void display(final PatchSetPublishDetail r) {
-    setPageTitle(Util.M.publishCommentsOnSet(r.getChange().getKey().abbreviate(),
-        r.getChange().getTopic()));
-    descBlock.display(r.getChange(), r.getAccounts());
+  private void display(final ChangeSetPublishDetail r) {
+    // TODO change this
+    setPageTitle(Util.M.publishCommentsOnSet(r.getTopic().getKey().abbreviate(),
+        r.getTopic().getTopic()));
+    descBlock.display(r.getTopic(), r.getAccounts());
 
-    if (r.getChange().getStatus().isOpen()) {
+    if (r.getTopic().getStatus().isOpen()) {
       initApprovals(r, approvalPanel);
     }
 
-    if (lastState != null && patchSetId.equals(lastState.patchSetId)) {
+    if (lastState != null && changeSetId.equals(lastState.changeSetId)) {
       message.setText(lastState.message);
     }
 
     draftsPanel.clear();
     commentEditors = new ArrayList<CommentEditorPanel>();
 
-    if (!r.getDrafts().isEmpty()) {
-      draftsPanel.add(new SmallHeading(Util.C.headingPatchComments()));
-
-      Panel panel = null;
-      String priorFile = "";
-      for (final PatchLineComment c : r.getDrafts()) {
-        final Patch.Key patchKey = c.getKey().getParentKey();
-        final String fn = patchKey.get();
-        if (!fn.equals(priorFile)) {
-          panel = new FlowPanel();
-          panel.addStyleName(Gerrit.RESOURCES.css().patchComments());
-          draftsPanel.add(panel);
-          // Parent table can be null here since we are not showing any
-          // next/previous links
-          panel.add(new PatchLink.SideBySide(PatchTable
-              .getDisplayFileName(patchKey), patchKey, 0, null, null));
-          priorFile = fn;
-        }
-
-        final CommentEditorPanel editor = new CommentEditorPanel(c);
-        editor.setAuthorNameText(Util.M.lineHeader(c.getLine()));
-        editor.setOpen(true);
-        commentEditors.add(editor);
-        panel.add(editor);
-      }
-    }
+//    if (!r.getDrafts().isEmpty()) {
+//      draftsPanel.add(new SmallHeading(Util.C.headingPatchComments()));
+//
+//      Panel panel = null;
+//      String priorFile = "";
+//      for (final PatchLineComment c : r.getDrafts()) {
+//        final Patch.Key patchKey = c.getKey().getParentKey();
+//        final String fn = patchKey.get();
+//        if (!fn.equals(priorFile)) {
+//          panel = new FlowPanel();
+//          panel.addStyleName(Gerrit.RESOURCES.css().patchComments());
+//          draftsPanel.add(panel);
+//          // Parent table can be null here since we are not showing any
+//          // next/previous links
+//          panel.add(new PatchLink.SideBySide(PatchTable
+//              .getDisplayFileName(patchKey), patchKey, 0, null, null));
+//          priorFile = fn;
+//        }
+//
+//        final CommentEditorPanel editor = new CommentEditorPanel(c);
+//        editor.setAuthorNameText(Util.M.lineHeader(c.getLine()));
+//        editor.setOpen(true);
+//        commentEditors.add(editor);
+//        panel.add(editor);
+//      }
+//    }
 
     submit.setVisible(r.canSubmit());
   }
@@ -358,47 +421,49 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     }
 
     enableForm(false);
-    PatchUtil.DETAIL_SVC.publishComments(patchSetId, message.getText().trim(),
-        new HashSet<ApprovalCategoryValue.Id>(values.values()),
-        new GerritCallback<VoidResult>() {
-          public void onSuccess(final VoidResult result) {
-            if(submit) {
-              submit();
-            } else {
-              saveStateOnUnload = false;
-              goChangeSet();
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable caught) {
-            super.onFailure(caught);
-            enableForm(true);
-          }
-        });
+    // TODO
+//    PatchUtil.DETAIL_SVC.publishComments(patchSetId, message.getText().trim(),
+//        new HashSet<ApprovalCategoryValue.Id>(values.values()),
+//        new GerritCallback<VoidResult>() {
+//          public void onSuccess(final VoidResult result) {
+//            if(submit) {
+//              submit();
+//            } else {
+//              saveStateOnUnload = false;
+//              goChangeSet();
+//            }
+//          }
+//
+//          @Override
+//          public void onFailure(Throwable caught) {
+//            super.onFailure(caught);
+//            enableForm(true);
+//          }
+//        });
   }
 
   private void submit() {
-    Util.MANAGE_SVC.submit(patchSetId,
-        new GerritCallback<ChangeDetail>() {
-          public void onSuccess(ChangeDetail result) {
-            saveStateOnUnload = false;
-            goChangeSet();
-          }
-
-          @Override
-          public void onFailure(Throwable caught) {
-            goChangeSet();
-            super.onFailure(caught);
-          }
-        });
+    // TODO
+//    Util.MANAGE_SVC.submit(patchSetId,
+//        new GerritCallback<ChangeDetail>() {
+//          public void onSuccess(ChangeDetail result) {
+//            saveStateOnUnload = false;
+//            goChangeSet();
+//          }
+//
+//          @Override
+//          public void onFailure(Throwable caught) {
+//            goChangeSet();
+//            super.onFailure(caught);
+//          }
+//        });
   }
 
   private void goChangeSet() {
-    final Change.Id ck = patchSetId.getParentKey();
+    final Change.Id ck = changeSetId.getParentKey();
     // TODO
     // We need a new entity to return to, instead of a query
-    //Gerrit.display(PageLinks.toChangeSet(ck), new CommitSetScreen());
+    Gerrit.display(PageLinks.toTopic(ck), new TopicScreen(ck));
   }
 
   private static class ValueRadioButton extends RadioButton {
@@ -411,12 +476,12 @@ public class PublishTopicCommentScreen extends AccountScreen implements
   }
 
   private static class SavedState {
-    final PatchSet.Id patchSetId;
+    final ChangeSet.Id changeSetId;
     final String message;
     final Map<ApprovalCategory.Id, ApprovalCategoryValue> approvals;
 
     SavedState(final PublishTopicCommentScreen p) {
-      patchSetId = p.patchSetId;
+      changeSetId = p.changeSetId;
       message = p.message.getText();
       approvals = new HashMap<ApprovalCategory.Id, ApprovalCategoryValue>();
       for (final ValueRadioButton b : p.approvalButtons) {
